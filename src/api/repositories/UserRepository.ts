@@ -10,4 +10,22 @@ export const UserRepository = appDataSource.getRepository(UserEntity).extend({
     const savedUser = await this.save(userEntity);
     return Mapper.map(savedUser, User);
   },
+
+  async getUserByVerificationToken(verificationToken: string): Promise<User | undefined> {
+    const userEntity = await this.findOneBy({ verificationToken });
+    if (!userEntity) {
+      throw new BadRequestError('User not found');
+    }
+    return Mapper.map(userEntity, User);
+  },
+
+  async findByEmail(email: string): Promise<User | undefined> {
+    const userEntity = await this.findOneBy({ email });
+    return userEntity ? Mapper.map(userEntity, User) : undefined;
+  },
+
+  async findByResetPasswordToken(resetPasswordToken: string): Promise<User | undefined> {
+    const userEntity = await this.findOneBy({ resetPasswordToken });
+    return userEntity ? Mapper.map(userEntity, User) : undefined;
+  },
 });

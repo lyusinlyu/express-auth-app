@@ -16,6 +16,11 @@ const config = {
     entities: [process.env.TYPEORM_ENTITIES || 'src/api/repositories/entities/*.ts'],
     migrations: [process.env.TYPEORM_MIGRATIONS || 'src/db/migrations/*.ts'],
   },
+  fromEmail: process.env.SEND_EMAIL || 'my_email',
+  sendgridAPIKey: process.env.SENDGRID_API_KEY || 'my_api_key',
+  JWTSecret: process.env.JWT_SECRET || 'very_secret_key',
+  JWTExpiresIn: process.env.JWT_EXPIRE_IN || '1h',
+  JWTExpiresInLong: process.env.JWT_EXPIRE_IN_LONG || '1h',
 };
 
 export default config;
