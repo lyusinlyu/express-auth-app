@@ -1,4 +1,5 @@
 import { config as dotenvConfig } from 'dotenv';
+import path from 'path';
 
 dotenvConfig();
 
@@ -21,6 +22,17 @@ const config = {
   JWTSecret: process.env.JWT_SECRET || 'very_secret_key',
   JWTExpiresIn: process.env.JWT_EXPIRE_IN || '1h',
   JWTExpiresInLong: process.env.JWT_EXPIRE_IN_LONG || '1h',
+  githubClientId: process.env.GITHUB_CLIENT_ID || 'my_client_id',
+  githubClientSecret: process.env.GITHUB_CLIENT_SECRET || 'my_client_secret',
+  wsPort: process.env.WS_PORT ? parseInt(process.env.WS_PORT) : 1990,
+  userPhotosDir: '/users',
+  nodeEnv: process.env.NODE_ENV || 'development',
+  logOutput: process.env.LOG_OUTPUT || 'combined',
+  photoResizeSizes: [
+    { suffix: '_icon', width: 100, height: 100 },
+    { suffix: '_normal', width: 300, height: 300 },
+    { suffix: '_large', width: 500, height: 500 },
+  ],
 };
 
 export default config;

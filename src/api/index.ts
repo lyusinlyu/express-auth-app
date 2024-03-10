@@ -6,26 +6,40 @@ import { AuthController } from './controllers/AuthController';
 import { Container } from 'typedi';
 import { ControllerMapperProfile } from './controllers/mapper/ControllerMapperProfile';
 import { RepositoryMapperProfile } from './repositories/mapper/RepositoryMapperProfile';
+import authorizationChecker from './auth/authorizationChecker';
+import currentUserChecker from './auth/currentUserChecker';
+import { UserController } from './controllers/UserController';
+import SetupPassport from '../lib/passport';
+import { GithubController } from './controllers/GithubAuthController';
+import express from 'express';
+import logger from '../lib/logger';
+import { RequestLogMiddleware } from './middlewares/RequestLogMiddleware';
 
 export class API {
   static async init() {
+    const passport = SetupPassport();
     useContainer(Container);
     const app = createExpressServer({
       cors: true,
-      controllers: [AuthController],
-      middlewares: [],
+      controllers: [AuthController, UserController, GithubController],
+      middlewares: [RequestLogMiddleware],
       routePrefix: '/api',
 
       validation: {
         whitelist: true,
         forbidNonWhitelisted: true,
       },
+      authorizationChecker: authorizationChecker,
+      currentUserChecker: currentUserChecker,
     });
+    app.use(passport.initialize());
+
+    app.use(express.static('public'));
 
     API.initAutoMapper();
 
     app.listen(config.port, () => {
-      console.log(`Server start http://localhost:${config.port}`);
+      logger.info(`Server start http://localhost:${config.port}`);
     });
   }
 

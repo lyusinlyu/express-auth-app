@@ -2,6 +2,7 @@ import { Service } from 'typedi';
 import sgMail from '@sendgrid/mail';
 import config from '../../config';
 import { UUID } from 'typeorm/driver/mongodb/bson.typings';
+import logger from '../../lib/logger';
 
 @Service()
 export class MailService {
@@ -21,7 +22,7 @@ export class MailService {
     try {
       const [response] = await sgMail.send(msg);
       if (response.statusCode === 202) {
-        console.log('Email sent successfully');
+        logger.info('Email sent successfully');
         return true;
       }
     } catch (error) {

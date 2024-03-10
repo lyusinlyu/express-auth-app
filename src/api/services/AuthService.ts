@@ -1,18 +1,32 @@
-import { Service } from 'typedi';
+import Container, { Service } from 'typedi';
 import { RegisterBody } from '../controllers/requests/auth/RegisterBody';
 import { User } from './models/User';
 import * as argon from 'argon2';
 import { v4 as uuidv4 } from 'uuid';
 import { UserRepository } from '../repositories/UserRepository';
 import { MailService } from './MailService';
-import { UserStatus } from '../enums/UserStatuses';
+import { UserStatus } from '../enums/UserStatus';
 import { LoginBody } from '../controllers/requests/auth/LoginBody';
 import config from '../../config';
 import jwt from 'jsonwebtoken';
 import { Auth } from './models/Auth';
+import { AuthProvider } from './models/AuthProvicer';
+import { AuthProviderRepository } from '../repositories/AuthProvicerRepository';
+import { BaseService } from './BaseService';
+import { UserService } from './UserService';
+import { BadRequestError } from 'routing-controllers';
+import { WebSocketService } from '../../websocket';
+interface JWTPayload {
+  id: string;
+}
 @Service()
-export class AuthService {
-  constructor(private mailService: MailService) {}
+export class AuthService extends BaseService {
+  constructor(
+    private mailService: MailService,
+    private userService: UserService,
+  ) {
+    super();
+  }
   public async register(userData: RegisterBody): Promise<User> {
     try {
       const passwordHash = await argon.hash(userData.password);
@@ -36,12 +50,14 @@ export class AuthService {
         savedUser.id,
       );
       if (emailSent) {
+        console.log(3333, savedUser);
         savedUser.isEmailSent = true;
         await UserRepository.saveUser(savedUser);
       }
 
       return savedUser;
     } catch (error: any) {
+      console.log(11, error.message);
       if (error.code === '23505') {
         throw new Error('User exist');
       }
@@ -98,6 +114,11 @@ export class AuthService {
     await UserRepository.save(user);
   }
 
+  public async logout(userId: string): Promise<void> {
+    const webSocketService = Container.get(WebSocketService);
+    webSocketService.notifyLogout(userId);
+  }
+
   public generateVerificationToken(): string {
     return uuidv4();
   }
@@ -108,5 +129,56 @@ export class AuthService {
       user.status = UserStatus.ACTIVE;
       await UserRepository.save(user);
     }
+  }
+
+  public async checkToken(token: string, roles?: string[]): Promise<string> {
+    try {
+      const payload = jwt.verify(token, config.JWTSecret) as JWTPayload;
+      const user = await this.userService.getUser(payload.id);
+      if (!user) {
+        throw new BadRequestError('Invalid credentials');
+      }
+
+      if (roles && !roles.includes(user.role)) {
+        throw new BadRequestError('Access denied');
+      }
+
+      return user.id;
+    } catch (e) {
+      console.error(e);
+      throw new BadRequestError('Unexpected error');
+    }
+  }
+
+  public async findOrCreateUserWithProvider(userData: User, authProviderData: AuthProvider): Promise<User> {
+    try {
+      let user = await UserRepository.findByEmail(userData.email);
+      if (!user) {
+        userData.role = 'user';
+        userData.status = UserStatus.ACTIVE;
+        user = await UserRepository.saveUser(userData);
+      }
+      const existingAuthProvider = await AuthProviderRepository.findByProviderId(authProviderData.providerId);
+
+      if (!existingAuthProvider) {
+        authProviderData.userId = user.id;
+        await AuthProviderRepository.save(authProviderData);
+      } else {
+        await AuthProviderRepository.update(
+          { id: existingAuthProvider.id },
+          { providerId: authProviderData.providerId },
+        );
+      }
+
+      return user;
+    } catch (error: any) {
+      console.error('Error in findOrCreateUser:', error);
+      throw new Error('Error creating or finding user');
+    }
+  }
+
+  async socialLogin(id: string): Promise<Auth> {
+    const rememberMe = false; // Set the value of rememberMe as per your requirement
+    return await this.signToken(id, rememberMe);
   }
 }
